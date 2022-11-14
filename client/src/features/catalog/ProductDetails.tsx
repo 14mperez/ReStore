@@ -1,8 +1,9 @@
 import { Divider, Grid, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
-import useEnhancedEffect from "@mui/material/utils/useEnhancedEffect";
-import axios from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import agent from "../../app/api/agent";
+import NotFound from "../../app/errors/NotFound";
+import LoadingComponent from "../../app/layout/LoadingComponent";
 import { Product } from "../../app/models/product";
 
 export default function ProductDetails() {
@@ -10,19 +11,19 @@ export default function ProductDetails() {
     const [product, setProducts] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEnhancedEffect(() => {
-        axios.get(`http://localhost:5000/api/products/${id}`)
-        .then(response => setProducts(response.data))
-        .catch(error => console.log(error))
-        .finally(() => setLoading(false));
+    useEffect(() => { // Making request to the API controller
+        agent.Catalog.details(parseInt(id))
+            .then(response => setProducts(response)) // If we get a successful response, then set the product to the response
+            .catch(error => console.log(error)) // Catching error and logging out to console
+            .finally(() => setLoading(false)); // Turn off any loading going on
     }, [id])
 
-    if (loading) return <h3>Loading...</h3>
+    if (loading) return <LoadingComponent message='Loading product...' />
 
-    if(!product) return <h3>Product not found</h3>
+    if(!product) return <NotFound />
 
-    return(
-        <Grid container spacing={6}>
+    return( // Organizing product information and details
+        <Grid container spacing={6}> {/*Setting grid size and spacing*/}
             <Grid item xs={6}>
                 <img src={product.pictureUrl} alt={product.name} style={{width: '100%'}} />
             </Grid>
@@ -33,7 +34,7 @@ export default function ProductDetails() {
                 <TableContainer>
                     <Table>
                         <TableBody>
-                            <TableRow>
+                            <TableRow> {/*Retrieving product information and organizing them into a table cell format*/}
                                 <TableCell>Name</TableCell>
                                 <TableCell>{product.name}</TableCell>
                             </TableRow>
