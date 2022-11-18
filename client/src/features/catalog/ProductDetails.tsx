@@ -1,23 +1,55 @@
-import { Divider, Grid, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
+import { LoadingButton } from "@mui/lab";
+import { Divider, Grid, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import agent from "../../app/api/agent";
+import { useStoreContext } from "../../app/context/StoreContext";
 import NotFound from "../../app/errors/NotFound";
 import LoadingComponent from "../../app/layout/LoadingComponent";
 import { Product } from "../../app/models/product";
 
 export default function ProductDetails() {
+    const {basket, setBasket, removeItem} = useStoreContext();
     const {id} = useParams<{id: string}>();
     const [product, setProducts] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
+    const [quantity, setQuantity] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
+    const item = basket?.items.find(i => i.productId === product?.id);
 
     useEffect(() => { // Making request to the API controller
+        if (item) setQuantity(item.quantity);
         agent.Catalog.details(parseInt(id))
             .then(response => setProducts(response)) // If we get a successful response, then set the product to the response
             .catch(error => console.log(error)) // Catching error and logging out to console
             .finally(() => setLoading(false)); // Turn off any loading going on
-    }, [id])
+    }, [id, item])
 
+    function handleInputChange(event: any){
+        if (event.target.value >= 0){
+            setQuantity(parseInt(event.target.value));
+        }
+    }
+
+    // Function to handle updating card to selected quantity of item
+    function handleUpdateCart() {
+        setSubmitting(true);
+        if (!item || quantity > item.quantity){
+            const updatedQuantity = item ? quantity - item.quantity : quantity;
+            agent.Basket.addItem(product?.id!, updatedQuantity)
+                .then(basket => setBasket(basket))
+                .catch(error => console.log(error))
+                .finally(() => setSubmitting(false))
+        }else{
+            const updatedQuantity = item.quantity - quantity;
+            agent.Basket.removeItem(product?.id!, updatedQuantity)
+                .then(() => removeItem(product?.id!, updatedQuantity))
+                .catch(error => console.log(error))
+                .finally(() => setSubmitting(false))
+        }
+    }
+
+    // Loading message
     if (loading) return <LoadingComponent message='Loading product...' />
 
     if(!product) return <NotFound />
@@ -57,6 +89,32 @@ export default function ProductDetails() {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                        <TextField
+                            onChange={handleInputChange}
+                            variant='outlined'
+                            type='number'
+                            label='Quantity in Cart'
+                            fullWidth
+                            value={quantity}
+                        />
+                    </Grid>
+                    <Grid item xs={6}>
+                        <LoadingButton
+                            disabled={item?.quantity === quantity || !item && quantity === 0}
+                            loading={submitting}
+                            onClick={handleUpdateCart} // Updating card button
+                            sx={{height: '55px'}}
+                            color='primary'
+                            size='large'
+                            variant='contained'
+                            fullWidth
+                        >
+                            {item ? 'Update Quantity' : 'Add to Cart'}
+                        </LoadingButton>
+                    </Grid>
+                </Grid>
             </Grid>
         </Grid>
     )
